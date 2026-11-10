@@ -232,7 +232,15 @@
 <img data-g="d21" data-a="a79" alt="" style="left:73.963%;top:3.970%;width:26.037%;height:19.237%"></section>
 <div id="ov"></div><div id="cur"></div></div>
 <div id="stat" class="tracking-tight">loading…</div>
-<div id="dots" role="navigation" aria-label="เลือกหน้า"></div>
+<div id="bar" role="toolbar" aria-label="ปุ่มควบคุมการนำเสนอ">
+  <button id="prev" class="cb" type="button" aria-label="สไลด์ก่อนหน้า" title="ก่อนหน้า (←)">&#9664;</button>
+  <div id="dots" role="navigation" aria-label="เลือกหน้า"></div>
+  <button id="next" class="cb" type="button" aria-label="สไลด์ถัดไป" title="ถัดไป (→)">&#9654;</button>
+  <span class="sep" aria-hidden="true"></span>
+  <button id="start" class="cb wide" type="button" title="เริ่มการนำเสนอ (P)">&#9654; <span class="lbl">เริ่มการนำเสนอ</span></button>
+  <button id="fs" class="cb wide" type="button" title="แสดงผลเต็มหน้าจอ (F)"><span class="ico">&#x26F6;</span> <span class="lbl">เต็มหน้าจอ</span></button>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
 <script src="images.js"></script>
 <script src="app.js"></script>
 </body>

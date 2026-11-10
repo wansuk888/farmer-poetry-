@@ -221,10 +221,40 @@ function go(n){
   gsap.fromTo(s.el,{opacity:0,y:28,scale:.985,transformOrigin:'50% 50%'},{opacity:1,y:0,scale:1,duration:.55,ease:'power3.out',clearProps:'transform'});
   stat.textContent='generating slide '+(n+1)+'/'+S.length+'…';
   $$('button',dotsEl).forEach((b,i)=>b.classList.toggle('act',i===n));
+  btnPrev.disabled=n<=0;btnNext.disabled=n>=S.length-1;
   setTimeout(()=>{if(my!==tok)return;
     CUR.forEach((c,i)=>{c.slow=true;gsap.to(c.e,{opacity:1,scale:1,duration:.45,delay:i*.08,ease:'back.out(2.2)',overwrite:'auto'})});
     run(s,my)},700);
 }
+/* ---------- presentation controls: start / fullscreen / prev / next ---------- */
+const btnPrev=$('#prev'),btnNext=$('#next'),btnStart=$('#start'),btnFs=$('#fs'),toast=$('#toast');
+let presenting=false,usedFs=false,idleT=0,toastT=0,relT=0,want=null;
+const fsEl=()=>document.fullscreenElement||document.webkitFullscreenElement||null;
+const say=m=>{toast.textContent=m;toast.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>toast.classList.remove('show'),3200)};
+async function enterFs(){const e=document.documentElement;
+  try{if(e.requestFullscreen)await e.requestFullscreen({navigationUI:'hide'});
+    else if(e.webkitRequestFullscreen)e.webkitRequestFullscreen();
+    else return false;return true}catch(err){return false}}
+async function exitFs(){try{if(document.exitFullscreen)await document.exitFullscreen();else if(document.webkitExitFullscreen)document.webkitExitFullscreen()}catch(e){}}
+/* auto-hide the control bar while presenting; any pointer/key activity brings it back */
+function wake(){document.body.classList.remove('idle');clearTimeout(idleT);if(presenting)idleT=setTimeout(()=>document.body.classList.add('idle'),2500)}
+function updateUi(){
+  btnStart.innerHTML=presenting?'&#9632; <span class="lbl">จบการนำเสนอ</span>':'&#9654; <span class="lbl">เริ่มการนำเสนอ</span>';
+  btnStart.title=presenting?'จบการนำเสนอ (Esc)':'เริ่มการนำเสนอ (P)';
+  btnFs.innerHTML='<span class="ico">&#x26F6;</span> <span class="lbl">'+(fsEl()?'ออกจากเต็มจอ':'เต็มหน้าจอ')+'</span>';
+  btnFs.title=fsEl()?'ออกจากเต็มหน้าจอ (Esc)':'แสดงผลเต็มหน้าจอ (F)';}
+function setPresenting(on){presenting=on;document.body.classList.toggle('presenting',on);if(!on)document.body.classList.remove('idle');wake();updateUi()}
+/* after the window size changes (fullscreen on/off) re-measure and replay the slide so the animation matches the new size */
+function relayout(n){want=n!=null?n:(want!=null?want:cur);clearTimeout(relT);
+  relT=setTimeout(()=>{const t=Math.max(0,want);want=null;fit();cur=-1;go(t)},220)}
+async function toggleFs(){if(fsEl()){await exitFs()}else if(!(await enterFs()))say('อุปกรณ์นี้ไม่รองรับการแสดงผลเต็มหน้าจอ')}
+async function togglePresent(){
+  if(presenting){setPresenting(false);if(fsEl())await exitFs();return}
+  setPresenting(true);
+  usedFs=await enterFs();
+  if(!usedFs)say('อุปกรณ์นี้ไม่รองรับเต็มจอ — เริ่มการนำเสนอจากสไลด์แรกแล้ว');
+  relayout(0)}
+
 function init(){
   fit();
   CUR=COL.map((c,i)=>{const e=document.createElement('div');e.className='cur';
@@ -233,9 +263,21 @@ function init(){
     const o={i,e,c,slow:true};o.qx=gsap.quickTo(e,'x',{duration:.2,ease:'power3.out'});o.qy=gsap.quickTo(e,'y',{duration:.2,ease:'power3.out'});return o});
   S.forEach((s,i)=>{const b=document.createElement('button');b.setAttribute('aria-label','slide '+(i+1));b.onclick=()=>go(i);dotsEl.append(b)});
   addEventListener('resize',fit);
-  addEventListener('keydown',e=>{
+  btnPrev.onclick=()=>{go(cur-1);btnPrev.blur()};
+  btnNext.onclick=()=>{go(cur+1);btnNext.blur()};
+  btnStart.onclick=()=>{btnStart.blur();togglePresent()};
+  btnFs.onclick=()=>{btnFs.blur();toggleFs()};
+  const onFs=()=>{updateUi();if(!fsEl()&&presenting&&usedFs)setPresenting(false);relayout()};
+  document.addEventListener('fullscreenchange',onFs);document.addEventListener('webkitfullscreenchange',onFs);
+  ['pointermove','pointerdown','touchstart'].forEach(t=>addEventListener(t,wake,{passive:true}));
+  updateUi();
+  addEventListener('keydown',e=>{wake();
+    if(e.ctrlKey||e.metaKey||e.altKey)return;
     if(['ArrowRight',' ','PageDown'].includes(e.key)){e.preventDefault();go(cur+1)}
-    else if(['ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();go(cur-1)}});
+    else if(['ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();go(cur-1)}
+    else if(e.key==='p'||e.key==='P'){e.preventDefault();togglePresent()}
+    else if(e.key==='f'||e.key==='F'){e.preventDefault();toggleFs()}
+    else if(e.key==='Escape'&&presenting&&!fsEl()){setPresenting(false)}});
   let tx=null;addEventListener('touchstart',e=>{tx=e.touches[0].clientX},{passive:true});
   addEventListener('touchend',e=>{if(tx==null)return;const d=e.changedTouches[0].clientX-tx;tx=null;if(Math.abs(d)>50)go(cur+(d<0?1:-1))});
   go(0);
